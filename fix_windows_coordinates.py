@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from drone_detection.windows_coordinate_fix import WindowsCoordinateFix
 from drone_detection.main_controller import MainController
-from drone_detection.models import Config
+from drone_detection.models import CameraConfig, AppState
 import cv2
 import logging
 
@@ -68,13 +68,8 @@ def run_with_coordinate_fix():
     print("🚀 Starting drone detection with Windows coordinate fix...")
     
     try:
-        # Create config with Windows optimizations
-        config = Config()
-        config.display_gui = True
-        config.confidence_threshold = 0.5
-        
-        # Initialize main controller
-        controller = MainController(config)
+        # Initialize main controller (it handles its own configuration)
+        controller = MainController()
         
         print("📷 Opening camera...")
         if not controller.initialize():

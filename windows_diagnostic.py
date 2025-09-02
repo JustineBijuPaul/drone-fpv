@@ -22,7 +22,7 @@ try:
     from drone_detection.human_detector import HumanDetector
     from drone_detection.display_manager import DisplayManager
     from drone_detection.camera_manager import CameraManager
-    from drone_detection.models import Config
+    from drone_detection.models import CameraConfig, AppState
     from drone_detection.windows_coordinate_fix import WindowsCoordinateFix
 except ImportError as e:
     print(f"❌ Import error: {e}")
@@ -209,13 +209,10 @@ def run_full_application_test():
         # Enable debug logging
         logging.basicConfig(level=logging.DEBUG)
         
-        config = Config()
-        config.display_gui = True
-        config.confidence_threshold = 0.5
-        
-        # Initialize components
+        # Initialize components directly
         camera = CameraManager()
         detector = HumanDetector()
+        detector.set_confidence_threshold(0.5)  # Set confidence threshold
         display = DisplayManager()
         
         if not camera.initialize():
