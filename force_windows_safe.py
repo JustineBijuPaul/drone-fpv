@@ -38,14 +38,16 @@ def run_with_windows_safe_display():
             source_type='drone',
             device_id=0,
             resolution=(640, 480),
-            fps=30
+            fps=30,
+            connection_timeout=10.0
         )
         
         controller.laptop_config = CameraConfig(
             source_type='laptop',
             device_id=0,
             resolution=(640, 480),
-            fps=30
+            fps=30,
+            connection_timeout=5.0
         )
         
         # Initialize components
