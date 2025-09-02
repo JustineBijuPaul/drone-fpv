@@ -125,32 +125,28 @@ class HumanDetector:
                 if max_coord <= 1.0:
                     self.logger.warning("Coordinates appear to be normalized (0-1), but YOLOv8 should return pixel coordinates")
             
+            # Apply Windows coordinate fix if needed
+            from .windows_coordinate_fix import WindowsCoordinateFix
+            coordinate_fix = WindowsCoordinateFix()
+            
             # Filter for human detections with sufficient confidence
             for i, (box, confidence, class_id) in enumerate(zip(boxes, confidences, class_ids)):
                 if (class_id == self.PERSON_CLASS_ID and 
                     confidence >= self.confidence_threshold):
                     
-                    # Convert coordinates to integers
-                    x1, y1, x2, y2 = map(int, box)
+                    # Debug: Log raw coordinates before processing
+                    x1, y1, x2, y2 = box
+                    self.logger.debug(f"Raw detection {i}: bbox=({x1:.2f}, {y1:.2f}, {x2:.2f}, {y2:.2f}), conf={confidence:.3f}")
                     
-                    # Debug: Log raw coordinates before validation
-                    self.logger.debug(f"Raw detection {i}: bbox=({x1}, {y1}, {x2}, {y2}), conf={confidence:.3f}")
+                    # Apply coordinate fix (handles scaling and Windows-specific issues)
+                    fixed_boxes = coordinate_fix.fix_coordinates([(x1, y1, x2, y2)], frame_width, frame_height)
                     
-                    # Check if coordinates seem reasonable
-                    if max(x1, y1, x2, y2) <= 1:
-                        # Coordinates are likely normalized, scale them
-                        self.logger.warning("Scaling normalized coordinates to pixel coordinates")
-                        x1 = int(x1 * frame_width)
-                        y1 = int(y1 * frame_height)  
-                        x2 = int(x2 * frame_width)
-                        y2 = int(y2 * frame_height)
-                        self.logger.debug(f"Scaled detection {i}: bbox=({x1}, {y1}, {x2}, {y2})")
-                    
-                    # Ensure coordinates are within frame bounds
-                    x1 = max(0, min(x1, frame_width - 1))
-                    y1 = max(0, min(y1, frame_height - 1))
-                    x2 = max(x1 + 1, min(x2, frame_width - 1))
-                    y2 = max(y1 + 1, min(y2, frame_height - 1))
+                    if not fixed_boxes:
+                        self.logger.warning(f"Detection {i} rejected by coordinate fix")
+                        continue
+                        
+                    x1, y1, x2, y2 = fixed_boxes[0]
+                    self.logger.debug(f"Fixed detection {i}: bbox=({x1}, {y1}, {x2}, {y2})")
                     
                     # Validate bounding box dimensions
                     if x2 > x1 and y2 > y1:
