@@ -4,8 +4,15 @@ import cv2
 import numpy as np
 import time
 import logging
+import platform
 from typing import Optional, Tuple, List
 from .models import CameraConfig
+
+# Import Windows compatibility utilities
+try:
+    from .windows_compat import windows_compat
+except ImportError:
+    windows_compat = None
 
 
 class CameraManager:
@@ -68,7 +75,23 @@ class CameraManager:
             # Use specified device_id or first available camera
             device_id = config.device_id if config.device_id in available_cameras else available_cameras[0]
             
-            self.current_camera = cv2.VideoCapture(device_id)
+            # Use Windows-optimized camera initialization if available
+            if windows_compat and windows_compat.is_windows:
+                backends = windows_compat.get_optimal_camera_backends()
+                for backend in backends:
+                    try:
+                        self.current_camera = cv2.VideoCapture(device_id, backend)
+                        if self.current_camera.isOpened():
+                            break
+                        self.current_camera.release()
+                    except Exception as e:
+                        self.logger.debug(f"Backend {backend} failed: {e}")
+                        continue
+                else:
+                    # Fallback to default
+                    self.current_camera = cv2.VideoCapture(device_id)
+            else:
+                self.current_camera = cv2.VideoCapture(device_id)
             
             if not self.current_camera.isOpened():
                 self.logger.error(f"Failed to open laptop camera {device_id}")
@@ -135,12 +158,31 @@ class CameraManager:
     
     def _detect_laptop_cameras(self) -> List[int]:
         """Detect available laptop cameras."""
+        # Use Windows-specific detection if available
+        if windows_compat and windows_compat.is_windows:
+            try:
+                windows_cameras = windows_compat.detect_windows_cameras()
+                if windows_cameras:
+                    camera_ids = [cam['id'] for cam in windows_cameras]
+                    self.logger.info(f"Windows-detected cameras: {camera_ids}")
+                    return camera_ids
+            except Exception as e:
+                self.logger.debug(f"Windows camera detection failed, using fallback: {e}")
+        
+        # Fallback to standard detection
         available_cameras = []
         
-        # Test camera indices 0-5 (common range)
-        for i in range(6):
+        # Test camera indices 0-9 (extended range for Windows)
+        max_cameras = 10 if platform.system().lower() == 'windows' else 6
+        
+        for i in range(max_cameras):
             try:
-                cap = cv2.VideoCapture(i)
+                # Use DirectShow backend on Windows for better compatibility
+                if platform.system().lower() == 'windows':
+                    cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+                else:
+                    cap = cv2.VideoCapture(i)
+                    
                 if cap.isOpened():
                     ret, frame = cap.read()
                     if ret and frame is not None:
@@ -166,8 +208,23 @@ class CameraManager:
             # Set FPS
             self.current_camera.set(cv2.CAP_PROP_FPS, config.fps)
             
-            # Set buffer size to reduce latency
-            self.current_camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            # Windows-specific optimizations
+            if windows_compat and windows_compat.is_windows:
+                optimizations = windows_compat.optimize_for_windows_performance()
+                
+                # Set buffer size based on Windows optimizations
+                buffer_size = optimizations.get('buffer_size', 1)
+                self.current_camera.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+                
+                # Enable hardware acceleration if available
+                if optimizations.get('enable_hardware_acceleration', False):
+                    try:
+                        self.current_camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                    except Exception:
+                        pass
+            else:
+                # Set buffer size to reduce latency
+                self.current_camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             
             self.logger.info(f"Camera configured: {width}x{height} @ {config.fps}fps")
             

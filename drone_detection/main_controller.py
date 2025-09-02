@@ -13,6 +13,12 @@ from .display_manager import DisplayManager
 from .performance_monitor import PerformanceMonitor
 from .models import CameraConfig, AppState
 
+# Import Windows compatibility utilities
+try:
+    from .windows_compat import ensure_windows_compatibility
+except ImportError:
+    ensure_windows_compatibility = None
+
 
 class ErrorType(Enum):
     CAMERA_CONNECTION_FAILED = "camera_connection_failed"
@@ -133,6 +139,12 @@ class MainController:
     def initialize_components(self) -> bool:
         try:
             self.logger.info("Initializing system components...")
+
+            # Initialize Windows compatibility first
+            if ensure_windows_compatibility:
+                self.logger.info("Setting up Windows 11 compatibility...")
+                if not ensure_windows_compatibility():
+                    self.logger.warning("Windows compatibility setup failed, but continuing...")
 
             if not self._initialize_camera_manager():
                 return False

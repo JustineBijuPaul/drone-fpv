@@ -1,0 +1,19 @@
+# Windows 11 specific requirements for Drone Human Detection System
+
+# Windows-specific packages
+pywin32>=306; platform_system=="Windows"
+colorama>=0.4.6; platform_system=="Windows"
+wmi>=1.5.1; platform_system=="Windows"
+
+# Enhanced performance monitoring for Windows
+psutil>=5.9.0
+
+# Additional Windows GUI support
+pyqt5>=5.15.0; platform_system=="Windows"
+pyqt5-tools>=5.15.0; platform_system=="Windows"
+
+# Windows camera driver support
+pygrabber>=0.1; platform_system=="Windows"
+
+# Windows system monitoring
+py-cpuinfo>=9.0.0

@@ -2,6 +2,25 @@
 
 A comprehensive real-time human detection system for drone operations using YOLOv8 computer vision model. The system processes live camera feeds from drones to detect and identify human figures, with laptop camera fallback for development and testing.
 
+**✨ Full Windows 11 Support Available!** See [WINDOWS_README.md](WINDOWS_README.md) for Windows-specific setup and features.
+
+## Quick Start
+
+### Windows 11 (Recommended)
+```bash
+# Run the automatic installer
+install_windows.bat
+
+# Or use the quick runner
+run_windows.bat --gui
+```
+
+### Linux/macOS
+```bash
+pip install -r requirements.txt
+python main.py --gui
+```
+
 ## System Architecture Overview
 
 This system is designed as a modular, fault-tolerant application with comprehensive error handling and recovery mechanisms. It follows a multi-component architecture where each component has specific responsibilities and communicates through well-defined interfaces.
@@ -391,35 +410,87 @@ drone-fpv-detection/
 - **Processing time analysis** for bottleneck identification
 - **Adaptive quality control** for performance optimization
 
+## Platform Support
+
+### Windows 11 (Full Support)
+- **Native Windows optimization** with DirectShow backend
+- **Enhanced camera detection** for Windows devices
+- **GPU acceleration** with CUDA support
+- **Windows-specific GUI** optimizations
+- **Automatic installation** via batch scripts
+- **Performance monitoring** integration
+
+See [WINDOWS_README.md](WINDOWS_README.md) for detailed Windows setup and troubleshooting.
+
+### Linux
+- **V4L2 camera support** with automatic detection
+- **X11 display backend** for GUI applications
+- **CUDA and OpenCL** acceleration support
+- **Systemd integration** for service deployment
+
+### macOS
+- **AVFoundation backend** for camera access
+- **Metal acceleration** support
+- **Cocoa GUI integration** via OpenCV
+- **Homebrew compatibility** for dependencies
+
+## Cross-Platform Features
+
+### Camera Backend Optimization
+- **Windows**: DirectShow → MSMF → VFW fallback
+- **Linux**: V4L2 → GStreamer → FFmpeg fallback  
+- **macOS**: AVFoundation → QTKit fallback
+
+### Display Backend Selection
+- **Windows**: DirectShow with hardware acceleration
+- **Linux**: X11 with optional Wayland support
+- **macOS**: Cocoa with Metal rendering
+
+### Performance Optimizations
+- **Platform-specific threading** models
+- **Native memory management** integration
+- **Hardware acceleration** detection and utilization
+- **Adaptive quality control** based on system capabilities
+
 ## Troubleshooting
 
 ### Common Issues:
 
 1. **Camera not detected**:
-   - Check USB connections and camera permissions
+   - **Windows**: Check Privacy & Security → Camera settings
+   - **Linux**: Verify user in video group: `sudo usermod -a -G video $USER`
+   - **macOS**: Grant camera permission in System Preferences
    - Try different `--device-id` values (0, 1, 2, etc.)
-   - Use `--camera-source laptop` to force webcam usage
 
 2. **Low FPS performance**:
    - Reduce resolution: `--resolution 320x240`
    - Lower confidence threshold: `--confidence 0.3`
-   - Enable automatic frame skipping (enabled by default)
+   - Enable GPU acceleration if available
+   - Close unnecessary background applications
 
 3. **Model loading errors**:
    - Ensure internet connection for initial YOLOv8 download
    - Check available disk space (models require ~50MB)
-   - Verify PyTorch installation
+   - Verify PyTorch installation with CUDA support
 
 4. **Display issues**:
-   - Install OpenCV with GUI support: `pip install opencv-python`
-   - For headless systems, consider using `--gui` flag with X11 forwarding
-   - Check display environment variables on Linux systems
+   - **Windows**: Update graphics drivers, check DPI scaling
+   - **Linux**: Install OpenCV with GUI support, check DISPLAY variable
+   - **macOS**: Grant screen recording permission if needed
 
-### Debug Mode:
-Enable verbose logging by setting environment variable:
+### Platform-Specific Debug Mode:
+
+**Windows**:
+```cmd
+set PYTHONPATH=%PYTHONPATH%;.
+python main.py --gui --device-id 0 --resolution 640x480
+```
+
+**Linux/macOS**:
 ```bash
-export PYTHONPATH=$PYTHONPATH:. 
-python -c "import logging; logging.basicConfig(level=logging.DEBUG)"
+export PYTHONPATH=$PYTHONPATH:.
+python main.py --gui --device-id 0 --resolution 640x480
+```
 python main.py --camera-source laptop
 ```
 

@@ -4,8 +4,16 @@ import logging
 import cv2
 import numpy as np
 import time
+import platform
+import os
 from typing import List, Optional
 from .models import DetectionResult
+
+# Import Windows compatibility utilities
+try:
+    from .windows_compat import windows_compat
+except ImportError:
+    windows_compat = None
 
 
 class DisplayManager:
@@ -184,10 +192,11 @@ class DisplayManager:
         # If we're in headless mode, save a preview frame once and continue
         if getattr(self, '_headless', False):
             if not getattr(self, '_preview_saved', False):
+                preview_path = self._get_preview_path()
                 try:
-                    cv2.imwrite('/tmp/preview.jpg', display_frame)
+                    cv2.imwrite(preview_path, display_frame)
                     self._preview_saved = True
-                    self.logger.info("Headless mode: saved preview frame to /tmp/preview.jpg")
+                    self.logger.info(f"Headless mode: saved preview frame to {preview_path}")
                 except Exception:
                     pass
             # No GUI to interact with; keep running
@@ -197,18 +206,29 @@ class DisplayManager:
         # Create window if not already created
         if not self._window_created:
             try:
-                # Create a normal/resizable window so we can toggle fullscreen via setWindowProperty
-                cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+                # Windows-specific window creation optimizations
+                if windows_compat and windows_compat.is_windows:
+                    # Create a normal/resizable window with Windows optimizations
+                    cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
+                    # Set initial window size for better Windows experience
+                    cv2.resizeWindow(self.window_name, frame.shape[1], frame.shape[0])
+                else:
+                    # Create a normal/resizable window so we can toggle fullscreen via setWindowProperty
+                    cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+                
                 self._window_created = True
+                self.logger.info(f"Display window created: {self.window_name}")
+                
             except Exception as e:
                 # Failed to create a GUI window (headless environment or missing backend)
                 self.logger.error(f"Failed to create display window: {e}")
                 self._headless = True
-                # Attempt to save preview frame for inspection
+                # Save preview frame with Windows-compatible path
+                preview_path = self._get_preview_path()
                 try:
-                    cv2.imwrite('/tmp/preview.jpg', display_frame)
+                    cv2.imwrite(preview_path, display_frame)
                     self._preview_saved = True
-                    self.logger.info("Headless mode: saved preview frame to /tmp/preview.jpg")
+                    self.logger.info(f"Headless mode: saved preview frame to {preview_path}")
                 except Exception:
                     pass
                 self.last_key = None
@@ -220,10 +240,11 @@ class DisplayManager:
         except Exception as e:
             self.logger.error(f"Failed to display frame: {e}")
             self._headless = True
+            preview_path = self._get_preview_path()
             try:
-                cv2.imwrite('/tmp/preview.jpg', display_frame)
+                cv2.imwrite(preview_path, display_frame)
                 self._preview_saved = True
-                self.logger.info("Headless mode: saved preview frame to /tmp/preview.jpg")
+                self.logger.info(f"Headless mode: saved preview frame to {preview_path}")
             except Exception:
                 pass
             self.last_key = None
@@ -295,3 +316,11 @@ class DisplayManager:
             Current FPS value
         """
         return self.fps_counter
+
+    def _get_preview_path(self) -> str:
+        """Get appropriate preview file path for the current platform."""
+        if platform.system().lower() == 'windows':
+            import tempfile
+            return os.path.join(tempfile.gettempdir(), 'drone_preview.jpg')
+        else:
+            return '/tmp/preview.jpg'

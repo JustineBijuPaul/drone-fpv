@@ -10,9 +10,16 @@ import argparse
 import sys
 import logging
 import time
+import platform
 
 from drone_detection.models import CameraConfig, AppState
 from drone_detection.main_controller import MainController
+
+# Import Windows compatibility utilities
+try:
+    from drone_detection.windows_compat import ensure_windows_compatibility
+except ImportError:
+    ensure_windows_compatibility = None
 
 
 def parse_arguments():
@@ -61,9 +68,19 @@ def parse_arguments():
 def main():
     """Main application entry point."""
     args = parse_arguments()
+    
     # Configure logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger('main')
+    
+    # Display system information
+    logger.info(f"Running on {platform.system()} {platform.release()}")
+    
+    # Initialize Windows compatibility if needed
+    if ensure_windows_compatibility and platform.system().lower() == 'windows':
+        logger.info("Setting up Windows 11 compatibility...")
+        if not ensure_windows_compatibility():
+            logger.warning("Windows compatibility setup failed, but continuing...")
 
     # Parse resolution
     try:
@@ -76,6 +93,7 @@ def main():
     # Basic startup validation
     try:
         import cv2  # ensure opencv is importable
+        logger.info(f"OpenCV version: {cv2.__version__}")
     except Exception as e:
         logger.error(f"Missing dependency: OpenCV is required ({e})")
         sys.exit(1)
