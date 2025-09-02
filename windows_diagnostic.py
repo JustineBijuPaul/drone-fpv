@@ -109,9 +109,18 @@ def test_human_detector():
     print("=" * 50)
     
     try:
-        # Initialize human detector
+        # Initialize detector
         detector = HumanDetector()
         detector.set_confidence_threshold(0.5)
+        
+        # Load the model 
+        print("📥 Loading YOLOv8 model...")
+        if not detector.load_model():
+            print("❌ Failed to load YOLOv8 model")
+            return
+        print("✅ Model loaded successfully")
+        
+        # Capture frame from camera
         
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
@@ -213,9 +222,25 @@ def run_full_application_test():
         camera = CameraManager()
         detector = HumanDetector()
         detector.set_confidence_threshold(0.5)  # Set confidence threshold
+        
+        # Load the YOLOv8 model
+        print("📥 Loading YOLOv8 model...")
+        if not detector.load_model():
+            print("❌ Failed to load YOLOv8 model")
+            return
+        print("✅ Model loaded successfully")
+        
         display = DisplayManager()
         
-        if not camera.initialize():
+        # Create camera configuration
+        config = CameraConfig(
+            source_type='laptop',
+            device_id=0,
+            resolution=(640, 480),
+            fps=30
+        )
+        
+        if not camera.initialize_camera(config):
             print("❌ Failed to initialize camera")
             return
             
@@ -259,7 +284,7 @@ def run_full_application_test():
                 break
                 
         cv2.destroyAllWindows()
-        camera.cleanup()
+        camera.release()
         
     except Exception as e:
         print(f"❌ Error in full application test: {e}")
