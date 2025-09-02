@@ -72,7 +72,7 @@ def run_with_coordinate_fix():
         controller = MainController()
         
         print("📷 Opening camera...")
-        if not controller.initialize():
+        if not controller.initialize_components():
             print("❌ Failed to initialize system")
             return
             
@@ -80,7 +80,8 @@ def run_with_coordinate_fix():
         print("🔍 The coordinate fix is now active and will handle Windows coordinate issues automatically.")
         
         # Run the detection loop
-        controller.run()
+        exit_code = controller.run()
+        print(f"Application exited with code: {exit_code}")
         
     except KeyboardInterrupt:
         print("\n👋 Shutting down...")
@@ -88,7 +89,7 @@ def run_with_coordinate_fix():
         print(f"❌ Error: {str(e)}")
     finally:
         if 'controller' in locals():
-            controller.cleanup()
+            controller._graceful_shutdown()
 
 def main():
     """Main function to choose between test and run modes."""

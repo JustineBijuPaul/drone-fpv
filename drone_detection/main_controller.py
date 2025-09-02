@@ -4,6 +4,7 @@ import logging
 import time
 import signal
 import traceback
+import platform
 from typing import Optional, Dict, Any
 from enum import Enum
 
@@ -18,6 +19,12 @@ try:
     from .windows_compat import ensure_windows_compatibility
 except ImportError:
     ensure_windows_compatibility = None
+
+# Import Windows-safe display manager
+try:
+    from .windows_safe_display import WindowsSafeDisplayManager
+except ImportError:
+    WindowsSafeDisplayManager = None
 
 
 class ErrorType(Enum):
@@ -202,7 +209,13 @@ class MainController:
         try:
             # If a display manager was pre-set (e.g. GUI injection), keep it.
             if self.display_manager is None:
-                self.display_manager = DisplayManager()
+                # Use Windows-safe display manager on Windows to avoid Tkinter threading issues
+                if platform.system().lower() == 'windows' and WindowsSafeDisplayManager:
+                    self.display_manager = WindowsSafeDisplayManager()
+                    self.logger.info("Using Windows-safe display manager (OpenCV-based)")
+                else:
+                    self.display_manager = DisplayManager()
+                    self.logger.info("Using standard display manager")
             self.logger.info("Display manager initialized successfully")
             return True
         except Exception as e:
