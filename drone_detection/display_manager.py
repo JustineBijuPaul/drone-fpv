@@ -88,13 +88,30 @@ class DisplayManager:
         for detection in detections:
             # Extract bounding box coordinates
             x1, y1, x2, y2 = detection.bbox
+            
+            # Log bounding box for debugging
+            self.logger.debug(f"Drawing bbox: ({x1}, {y1}, {x2}, {y2}) for {detection.class_name}: {detection.confidence:.2f}")
 
-            # Ensure coordinates are within frame bounds
+            # Ensure coordinates are within frame bounds and valid
             height, width = display_frame.shape[:2]
             x1 = int(max(0, min(x1, width - 1)))
             y1 = int(max(0, min(y1, height - 1)))
-            x2 = int(max(0, min(x2, width - 1)))
-            y2 = int(max(0, min(y2, height - 1)))
+            x2 = int(max(x1 + 1, min(x2, width - 1)))  # Ensure x2 > x1
+            y2 = int(max(y1 + 1, min(y2, height - 1)))  # Ensure y2 > y1
+            
+            # Additional validation for Windows
+            if windows_compat and windows_compat.is_windows:
+                # Ensure minimum box size for visibility
+                min_size = 20
+                if (x2 - x1) < min_size:
+                    center_x = (x1 + x2) // 2
+                    x1 = max(0, center_x - min_size // 2)
+                    x2 = min(width - 1, center_x + min_size // 2)
+                
+                if (y2 - y1) < min_size:
+                    center_y = (y1 + y2) // 2
+                    y1 = max(0, center_y - min_size // 2)
+                    y2 = min(height - 1, center_y + min_size // 2)
 
             # Draw bounding box with enhanced visibility for Windows
             if windows_compat and windows_compat.is_windows:

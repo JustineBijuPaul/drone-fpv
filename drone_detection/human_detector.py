@@ -75,11 +75,16 @@ class HumanDetector:
             return []
         
         try:
+            # Store original frame dimensions for coordinate scaling
+            original_height, original_width = frame.shape[:2]
+            self.logger.debug(f"Processing frame: {original_width}x{original_height}")
+            
             # Run YOLOv8 inference on the frame
+            # YOLOv8 automatically handles resizing and coordinate scaling
             results = self.model(frame, verbose=False)
             
             # Filter and convert detections to our format
-            human_detections = self.filter_detections(results[0])
+            human_detections = self.filter_detections(results[0], original_width, original_height)
             
             self.logger.debug(f"Detected {len(human_detections)} humans in frame")
             return human_detections
@@ -88,12 +93,14 @@ class HumanDetector:
             self.logger.error(f"Error during detection processing: {str(e)}")
             return []
     
-    def filter_detections(self, detections) -> List[DetectionResult]:
+    def filter_detections(self, detections, frame_width: int, frame_height: int) -> List[DetectionResult]:
         """
         Filters results for human class only and applies confidence threshold.
         
         Args:
             detections: Raw YOLOv8 detection results
+            frame_width: Original frame width for coordinate validation
+            frame_height: Original frame height for coordinate validation
             
         Returns:
             List[DetectionResult]: Filtered human detection results
@@ -109,6 +116,15 @@ class HumanDetector:
             confidences = detections.boxes.conf.cpu().numpy()
             class_ids = detections.boxes.cls.cpu().numpy().astype(int)
             
+            self.logger.debug(f"Raw detections: {len(boxes)} boxes found for frame {frame_width}x{frame_height}")
+            
+            # Check if coordinates might be normalized (0-1 range) vs pixel coordinates
+            if len(boxes) > 0:
+                max_coord = np.max(boxes)
+                self.logger.debug(f"Maximum coordinate value: {max_coord}")
+                if max_coord <= 1.0:
+                    self.logger.warning("Coordinates appear to be normalized (0-1), but YOLOv8 should return pixel coordinates")
+            
             # Filter for human detections with sufficient confidence
             for i, (box, confidence, class_id) in enumerate(zip(boxes, confidences, class_ids)):
                 if (class_id == self.PERSON_CLASS_ID and 
@@ -117,14 +133,39 @@ class HumanDetector:
                     # Convert coordinates to integers
                     x1, y1, x2, y2 = map(int, box)
                     
-                    detection = DetectionResult(
-                        bbox=(x1, y1, x2, y2),
-                        confidence=float(confidence),
-                        class_id=class_id,
-                        class_name=self.PERSON_CLASS_NAME
-                    )
+                    # Debug: Log raw coordinates before validation
+                    self.logger.debug(f"Raw detection {i}: bbox=({x1}, {y1}, {x2}, {y2}), conf={confidence:.3f}")
                     
-                    human_detections.append(detection)
+                    # Check if coordinates seem reasonable
+                    if max(x1, y1, x2, y2) <= 1:
+                        # Coordinates are likely normalized, scale them
+                        self.logger.warning("Scaling normalized coordinates to pixel coordinates")
+                        x1 = int(x1 * frame_width)
+                        y1 = int(y1 * frame_height)  
+                        x2 = int(x2 * frame_width)
+                        y2 = int(y2 * frame_height)
+                        self.logger.debug(f"Scaled detection {i}: bbox=({x1}, {y1}, {x2}, {y2})")
+                    
+                    # Ensure coordinates are within frame bounds
+                    x1 = max(0, min(x1, frame_width - 1))
+                    y1 = max(0, min(y1, frame_height - 1))
+                    x2 = max(x1 + 1, min(x2, frame_width - 1))
+                    y2 = max(y1 + 1, min(y2, frame_height - 1))
+                    
+                    # Validate bounding box dimensions
+                    if x2 > x1 and y2 > y1:
+                        self.logger.debug(f"Final detection {i}: bbox=({x1}, {y1}, {x2}, {y2}), size=({x2-x1}x{y2-y1}), conf={confidence:.3f}")
+                        
+                        detection = DetectionResult(
+                            bbox=(x1, y1, x2, y2),
+                            confidence=float(confidence),
+                            class_id=class_id,
+                            class_name=self.PERSON_CLASS_NAME
+                        )
+                        
+                        human_detections.append(detection)
+                    else:
+                        self.logger.warning(f"Invalid bounding box detected: ({x1}, {y1}, {x2}, {y2})")
             
         except Exception as e:
             self.logger.error(f"Error filtering detections: {str(e)}")
