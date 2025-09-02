@@ -182,15 +182,21 @@ class WindowsCompatibility:
             
             # Optimize based on system specs
             if memory_gb >= 8:
-                optimizations['buffer_size'] = 3
+                optimizations['buffer_size'] = 2  # Reduced for better real-time performance
                 optimizations['thread_count'] = min(cpu_count, 4)
+                optimizations['target_fps'] = 30
             else:
                 optimizations['buffer_size'] = 1
                 optimizations['thread_count'] = 2
+                optimizations['target_fps'] = 20
             
-            # Windows-specific optimizations
+            # Windows-specific optimizations for better FPS
             optimizations['use_directshow'] = True
             optimizations['enable_hardware_acceleration'] = True
+            optimizations['use_mjpeg'] = True  # Better compression
+            optimizations['reduce_latency'] = True
+            optimizations['auto_exposure'] = False  # Disable for consistent FPS
+            optimizations['frame_drop_enabled'] = True  # Allow frame dropping for real-time
             
             self.logger.info(f"Windows optimizations: {optimizations}")
             return optimizations

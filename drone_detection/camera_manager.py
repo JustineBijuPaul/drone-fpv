@@ -208,7 +208,7 @@ class CameraManager:
             # Set FPS
             self.current_camera.set(cv2.CAP_PROP_FPS, config.fps)
             
-            # Windows-specific optimizations
+            # Windows-specific optimizations for better FPS
             if windows_compat and windows_compat.is_windows:
                 optimizations = windows_compat.optimize_for_windows_performance()
                 
@@ -216,12 +216,32 @@ class CameraManager:
                 buffer_size = optimizations.get('buffer_size', 1)
                 self.current_camera.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
                 
-                # Enable hardware acceleration if available
-                if optimizations.get('enable_hardware_acceleration', False):
+                # Enable MJPEG compression for better performance
+                if optimizations.get('use_mjpeg', False):
                     try:
                         self.current_camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                     except Exception:
                         pass
+                
+                # Disable auto-exposure for consistent FPS
+                if not optimizations.get('auto_exposure', True):
+                    try:
+                        self.current_camera.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # Manual exposure
+                    except Exception:
+                        pass
+                
+                # Enable hardware acceleration if available
+                if optimizations.get('enable_hardware_acceleration', False):
+                    try:
+                        # Try to enable hardware acceleration
+                        self.current_camera.set(cv2.CAP_PROP_CONVERT_RGB, 1)
+                    except Exception:
+                        pass
+                
+                # Set target FPS for Windows
+                target_fps = optimizations.get('target_fps', config.fps)
+                self.current_camera.set(cv2.CAP_PROP_FPS, target_fps)
+                
             else:
                 # Set buffer size to reduce latency
                 self.current_camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)

@@ -25,7 +25,12 @@ class DisplayManager:
         Args:
             window_name: Name of the OpenCV display window
         """
-        self.window_name = window_name
+        # Use a more descriptive Windows-friendly title
+        if platform.system().lower() == 'windows':
+            self.window_name = "🚁 Drone Human Detection System - Live Feed"
+        else:
+            self.window_name = window_name
+            
         self.fps_counter = 0.0
         self._frame_times = []
         self._max_frame_history = 30  # Keep last 30 frame times for FPS calculation
@@ -46,13 +51,23 @@ class DisplayManager:
         # Logger
         self.logger = logging.getLogger(__name__)
 
-        # Visual styling constants
-        self.bbox_color = (0, 255, 0)  # Green bounding boxes
-        self.text_color = (255, 255, 255)  # White text
-        self.bbox_thickness = 2
-        self.text_thickness = 1
-        self.font = cv2.FONT_HERSHEY_SIMPLEX
-        self.font_scale = 0.6
+        # Visual styling constants - Enhanced for Windows
+        if windows_compat and windows_compat.is_windows:
+            # Brighter colors for Windows displays
+            self.bbox_color = (0, 255, 0)  # Bright green bounding boxes
+            self.text_color = (255, 255, 255)  # White text with shadow
+            self.bbox_thickness = 3  # Thicker boxes for better visibility
+            self.text_thickness = 2  # Thicker text
+            self.font = cv2.FONT_HERSHEY_SIMPLEX
+            self.font_scale = 0.8  # Larger text
+        else:
+            # Original styling for other platforms
+            self.bbox_color = (0, 255, 0)  # Green bounding boxes
+            self.text_color = (255, 255, 255)  # White text
+            self.bbox_thickness = 2
+            self.text_thickness = 1
+            self.font = cv2.FONT_HERSHEY_SIMPLEX
+            self.font_scale = 0.6
 
     def draw_detections(self, frame: np.ndarray, detections: List[DetectionResult]) -> np.ndarray:
         """Draw bounding boxes and confidence scores on the frame.
@@ -81,7 +96,11 @@ class DisplayManager:
             x2 = int(max(0, min(x2, width - 1)))
             y2 = int(max(0, min(y2, height - 1)))
 
-            # Draw bounding box
+            # Draw bounding box with enhanced visibility for Windows
+            if windows_compat and windows_compat.is_windows:
+                # Draw a subtle shadow/outline for better contrast
+                cv2.rectangle(display_frame, (x1-1, y1-1), (x2+1, y2+1), (0, 0, 0), self.bbox_thickness)
+            
             cv2.rectangle(display_frame, (x1, y1), (x2, y2), self.bbox_color, self.bbox_thickness)
 
             # Prepare label text with confidence score
@@ -93,23 +112,39 @@ class DisplayManager:
                 label, self.font, self.font_scale, self.text_thickness
             )
 
-            # Draw background rectangle for text
+            # Draw background rectangle for text with Windows enhancement
+            text_padding = 10 if (windows_compat and windows_compat.is_windows) else 5
             text_bg_x1 = x1
-            text_bg_y1 = y1 - text_height - baseline - 5
-            text_bg_x2 = x1 + text_width + 10
+            text_bg_y1 = y1 - text_height - baseline - text_padding
+            text_bg_x2 = x1 + text_width + text_padding * 2
             text_bg_y2 = y1
 
             # Ensure text background is within frame bounds
             text_bg_y1 = max(0, text_bg_y1)
             text_bg_x2 = min(width, text_bg_x2)
 
-            cv2.rectangle(display_frame, (text_bg_x1, text_bg_y1), (text_bg_x2, text_bg_y2), self.bbox_color, -1)
+            # Enhanced background for Windows
+            if windows_compat and windows_compat.is_windows:
+                # Semi-transparent background
+                overlay = display_frame.copy()
+                cv2.rectangle(overlay, (text_bg_x1, text_bg_y1), (text_bg_x2, text_bg_y2), self.bbox_color, -1)
+                alpha = 0.8
+                cv2.addWeighted(overlay, alpha, display_frame, 1 - alpha, 0, display_frame)
+                # Add border
+                cv2.rectangle(display_frame, (text_bg_x1, text_bg_y1), (text_bg_x2, text_bg_y2), (255, 255, 255), 1)
+            else:
+                cv2.rectangle(display_frame, (text_bg_x1, text_bg_y1), (text_bg_x2, text_bg_y2), self.bbox_color, -1)
 
-            # Draw text label
-            text_x = x1 + 5
-            text_y = y1 - 5
+            # Draw text label with shadow for Windows
+            text_x = x1 + text_padding
+            text_y = y1 - text_padding
             if text_y < text_height:
-                text_y = y1 + text_height + 5
+                text_y = y1 + text_height + text_padding
+
+            if windows_compat and windows_compat.is_windows:
+                # Draw shadow for better readability
+                cv2.putText(display_frame, label, (text_x + 1, text_y + 1), 
+                           self.font, self.font_scale, (0, 0, 0), self.text_thickness)
 
             cv2.putText(display_frame, label, (text_x, text_y), self.font, self.font_scale, self.text_color, self.text_thickness)
 
@@ -132,7 +167,7 @@ class DisplayManager:
                 self._last_fps_update = current_time
 
     def _draw_fps_counter(self, frame: np.ndarray) -> np.ndarray:
-        """Draw FPS counter on the frame.
+        """Draw FPS counter on the frame with enhanced Windows styling.
 
         Args:
             frame: Input frame to draw FPS on
@@ -146,19 +181,36 @@ class DisplayManager:
         height, width = frame.shape[:2]
         (text_width, text_height), baseline = cv2.getTextSize(fps_text, self.font, self.font_scale, self.text_thickness)
 
-        # Calculate position
-        text_x = width - text_width - 10
-        text_y = text_height + 10
+        # Calculate position with more padding for Windows
+        padding = 15 if (windows_compat and windows_compat.is_windows) else 10
+        text_x = width - text_width - padding
+        text_y = text_height + padding
 
-        # Draw background rectangle
-        bg_x1 = text_x - 5
-        bg_y1 = text_y - text_height - 5
-        bg_x2 = text_x + text_width + 5
-        bg_y2 = text_y + 5
+        # Enhanced background for better visibility on Windows
+        bg_padding = 8 if (windows_compat and windows_compat.is_windows) else 5
+        bg_x1 = text_x - bg_padding
+        bg_y1 = text_y - text_height - bg_padding
+        bg_x2 = text_x + text_width + bg_padding
+        bg_y2 = text_y + bg_padding
 
-        cv2.rectangle(frame, (bg_x1, bg_y1), (bg_x2, bg_y2), (0, 0, 0), -1)
+        # Draw semi-transparent background for Windows
+        if windows_compat and windows_compat.is_windows:
+            overlay = frame.copy()
+            cv2.rectangle(overlay, (bg_x1, bg_y1), (bg_x2, bg_y2), (0, 0, 0), -1)
+            alpha = 0.7
+            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+            # Add border around FPS box for Windows style
+            cv2.rectangle(frame, (bg_x1, bg_y1), (bg_x2, bg_y2), (128, 128, 128), 1)
+        else:
+            cv2.rectangle(frame, (bg_x1, bg_y1), (bg_x2, bg_y2), (0, 0, 0), -1)
 
-        # Draw FPS text
+        # Draw FPS text with shadow effect for Windows
+        if windows_compat and windows_compat.is_windows:
+            # Draw shadow for better readability
+            cv2.putText(frame, fps_text, (text_x + 1, text_y + 1), 
+                       self.font, self.font_scale, (0, 0, 0), self.text_thickness)
+
+        # Draw main FPS text
         cv2.putText(frame, fps_text, (text_x, text_y), self.font, self.font_scale, self.text_color, self.text_thickness)
 
         return frame
@@ -209,9 +261,13 @@ class DisplayManager:
                 # Windows-specific window creation optimizations
                 if windows_compat and windows_compat.is_windows:
                     # Create a normal/resizable window with Windows optimizations
-                    cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
+                    cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO | cv2.WINDOW_GUI_EXPANDED)
                     # Set initial window size for better Windows experience
-                    cv2.resizeWindow(self.window_name, frame.shape[1], frame.shape[0])
+                    window_width = max(800, frame.shape[1])
+                    window_height = max(600, frame.shape[0])
+                    cv2.resizeWindow(self.window_name, window_width, window_height)
+                    # Move window to center of screen
+                    cv2.moveWindow(self.window_name, 100, 50)
                 else:
                     # Create a normal/resizable window so we can toggle fullscreen via setWindowProperty
                     cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
