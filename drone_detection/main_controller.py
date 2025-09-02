@@ -210,9 +210,13 @@ class MainController:
             # If a display manager was pre-set (e.g. GUI injection), keep it.
             if self.display_manager is None:
                 # Use Windows-safe display manager on Windows to avoid Tkinter threading issues
-                if platform.system().lower() == 'windows' and WindowsSafeDisplayManager:
-                    self.display_manager = WindowsSafeDisplayManager()
-                    self.logger.info("Using Windows-safe display manager (OpenCV-based)")
+                if platform.system().lower() == 'windows':
+                    if WindowsSafeDisplayManager:
+                        self.display_manager = WindowsSafeDisplayManager()
+                        self.logger.info("Using Windows-safe display manager (OpenCV-based)")
+                    else:
+                        self.logger.warning("WindowsSafeDisplayManager not available, using standard display")
+                        self.display_manager = DisplayManager()
                 else:
                     self.display_manager = DisplayManager()
                     self.logger.info("Using standard display manager")
