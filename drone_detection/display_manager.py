@@ -312,9 +312,10 @@ class DisplayManager:
                 if windows_compat and windows_compat.is_windows:
                     # Create a normal/resizable window with Windows optimizations
                     cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO | cv2.WINDOW_GUI_EXPANDED)
-                    # Set initial window size for better Windows experience
-                    window_width = max(800, frame.shape[1])
-                    window_height = max(600, frame.shape[0])
+                    # Set initial window size to a sensible default for Windows
+                    # Use 1920x1080 as the default window size requested
+                    window_width = 1920
+                    window_height = 1080
                     cv2.resizeWindow(self.window_name, window_width, window_height)
                     # Move window to center of screen
                     cv2.moveWindow(self.window_name, 100, 50)

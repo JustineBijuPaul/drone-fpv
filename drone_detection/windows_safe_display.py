@@ -62,7 +62,12 @@ class WindowsSafeDisplayManager(DisplayManager):
             # Create window if not already created
             if not self._window_created:
                 cv2.namedWindow(self.window_title, cv2.WINDOW_NORMAL)
-                cv2.resizeWindow(self.window_title, width, height)
+                # Request a default window size of 1920x1080 on Windows
+                try:
+                    cv2.resizeWindow(self.window_title, 1920, 1080)
+                except Exception:
+                    # Fallback to frame size if resize fails
+                    cv2.resizeWindow(self.window_title, width, height)
                 self._window_created = True
                 self.logger.info(f"Display window created: {self.window_title}")
             
