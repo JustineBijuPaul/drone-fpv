@@ -150,6 +150,29 @@ class HumanDetector:
                     
                     # Validate bounding box dimensions
                     if x2 > x1 and y2 > y1:
+                        # Additional heuristics to reduce false positives (windows, reflections)
+                        box_w = x2 - x1
+                        box_h = y2 - y1
+                        frame_area = frame_width * frame_height
+                        box_area = box_w * box_h
+
+                        # Conservative thresholds (relative to frame):
+                        min_area_ratio = 0.02  # box must cover at least 2% of frame area
+                        min_height_ratio = 0.12  # box height must be at least 12% of frame height
+                        min_aspect = 0.6  # height/width ratio (persons usually taller than wide)
+
+                        if box_area < frame_area * min_area_ratio:
+                            self.logger.debug(f"Rejected detection {i}: area too small ({box_area} < {frame_area * min_area_ratio})")
+                            continue
+
+                        if box_h < frame_height * min_height_ratio:
+                            self.logger.debug(f"Rejected detection {i}: height too small ({box_h} < {frame_height * min_height_ratio})")
+                            continue
+
+                        if (box_h / max(1, box_w)) < min_aspect:
+                            self.logger.debug(f"Rejected detection {i}: aspect ratio too small ({box_h}/{box_w} < {min_aspect})")
+                            continue
+
                         self.logger.debug(f"Final detection {i}: bbox=({x1}, {y1}, {x2}, {y2}), size=({x2-x1}x{y2-y1}), conf={confidence:.3f}")
                         
                         detection = DetectionResult(
