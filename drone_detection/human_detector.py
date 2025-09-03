@@ -158,6 +158,8 @@ class HumanDetector:
                             class_id=class_id,
                             class_name=self.PERSON_CLASS_NAME
                         )
+                        # Attach raw bbox as reported by the model for debugging
+                        detection.raw_bbox = (float(box[0]), float(box[1]), float(box[2]), float(box[3]))
                         
                         human_detections.append(detection)
                     else:

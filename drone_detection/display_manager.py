@@ -120,6 +120,39 @@ class DisplayManager:
             
             cv2.rectangle(display_frame, (x1, y1), (x2, y2), self.bbox_color, self.bbox_thickness)
 
+            # If raw bbox is available, draw it in red (thin) for debugging
+            if getattr(detection, 'raw_bbox', None):
+                try:
+                    rx1, ry1, rx2, ry2 = detection.raw_bbox
+                    # If normalized, scale for display
+                    if max(abs(rx1), abs(ry1), abs(rx2), abs(ry2)) <= 1.0:
+                        rx1 = int(rx1 * width)
+                        ry1 = int(ry1 * height)
+                        rx2 = int(rx2 * width)
+                        ry2 = int(ry2 * height)
+                    else:
+                        rx1, ry1, rx2, ry2 = int(rx1), int(ry1), int(rx2), int(ry2)
+
+                    # Clamp raw coords
+                    rx1 = max(0, min(rx1, width - 1))
+                    ry1 = max(0, min(ry1, height - 1))
+                    rx2 = max(0, min(rx2, width - 1))
+                    ry2 = max(0, min(ry2, height - 1))
+
+                    # Draw raw bbox (thin red)
+                    cv2.rectangle(display_frame, (rx1, ry1), (rx2, ry2), (0, 0, 255), 1)
+
+                    # Draw a small label with raw->fixed coords
+                    debug_label = f"raw:({rx1},{ry1},{rx2},{ry2})->fix:({x1},{y1},{x2},{y2})"
+                    dbg_w, dbg_h = cv2.getTextSize(debug_label, self.font, 0.4, 1)[0]
+                    dbg_x = x1
+                    dbg_y = y2 + dbg_h + 8
+                    if dbg_y + dbg_h > height:
+                        dbg_y = y1 - 8
+                    cv2.putText(display_frame, debug_label, (dbg_x, dbg_y), self.font, 0.4, (255, 255, 0), 1)
+                except Exception:
+                    pass
+
             # Prepare label text with confidence score
             confidence_percent = int(detection.confidence * 100)
             label = f"{detection.class_name}: {confidence_percent}%"

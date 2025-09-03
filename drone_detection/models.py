@@ -11,6 +11,8 @@ class DetectionResult:
     confidence: float
     class_id: int
     class_name: str
+    # Optional raw bbox as returned by the model (floats, possibly normalized).
+    raw_bbox: Tuple[float, float, float, float] | None = None
 
 
 @dataclass
