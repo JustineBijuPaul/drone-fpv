@@ -71,21 +71,17 @@ class WindowsCoordinateFix:
     def _needs_coordinate_scaling(self, x1: float, y1: float, x2: float, y2: float,
                                 frame_width: int, frame_height: int) -> bool:
         """Determine if coordinates are normalized and need scaling."""
-        max_coord = max(abs(x1), abs(y1), abs(x2), abs(y2))
-        
-        # Clear indicators of normalized coordinates
-        if max_coord <= 1.0:
-            return True
-            
-        # Suspicious small coordinates that might be normalized
-        if max_coord < min(frame_width, frame_height) * 0.1:
-            return True
-            
-        # Check if all coordinates are much smaller than expected
-        if max(x2 - x1, y2 - y1) < min(frame_width, frame_height) * 0.05:
-            return True
-            
-        return False
+        # Only treat coordinates as normalized when they are in the 0..1 range.
+        # Previous heuristics that treated small pixel values as normalized
+        # were too aggressive and caused valid pixel coordinates to be
+        # scaled incorrectly (leading to mis-positioned boxes).
+        try:
+            max_coord = max(abs(x1), abs(y1), abs(x2), abs(y2))
+        except Exception:
+            return False
+
+        # If all coordinates are within 0..1 assume normalized coordinates
+        return max_coord <= 1.0
     
     def _scale_normalized_coordinates(self, x1: float, y1: float, x2: float, y2: float,
                                     frame_width: int, frame_height: int) -> Tuple[int, int, int, int]:
@@ -100,35 +96,17 @@ class WindowsCoordinateFix:
     def _apply_windows_fixes(self, x1: float, y1: float, x2: float, y2: float,
                            frame_width: int, frame_height: int) -> Tuple[int, int, int, int]:
         """Apply Windows-specific coordinate fixes."""
-        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-        
+        # Convert to ints for further processing
+        x1_i, y1_i, x2_i, y2_i = int(x1), int(y1), int(x2), int(y2)
+
+        # If not on Windows, do nothing special
         if not self.is_windows:
-            return x1, y1, x2, y2
-            
-        # Fix for coordinates being offset to upper-left corner
-        if (x1 < frame_width * 0.2 and y1 < frame_height * 0.2 and 
-            x2 < frame_width * 0.6 and y2 < frame_height * 0.6):
-            
-            # Check if this looks like a person-sized box in the wrong location
-            box_width = x2 - x1
-            box_height = y2 - y1
-            
-            # If box is reasonable size but in upper corner, it might be mis-positioned
-            if (box_width > 50 and box_height > 100 and 
-                x1 < 100 and y1 < 100):
-                
-                self.logger.warning("Detected potential coordinate offset issue")
-                # Try to reposition to center of frame as a guess
-                center_x = frame_width // 2
-                center_y = frame_height // 2
-                x1 = center_x - box_width // 2
-                y1 = center_y - box_height // 2
-                x2 = x1 + box_width
-                y2 = y1 + box_height
-                
-                self.logger.info(f"Repositioned box to center: ({x1}, {y1}, {x2}, {y2})")
-        
-        return x1, y1, x2, y2
+            return x1_i, y1_i, x2_i, y2_i
+
+        # Keep behavior minimal on Windows: do not attempt to guess new
+        # positions. Only ensure coordinates are within bounds; aggressive
+        # auto-repositioning was removed because it produced incorrect boxes.
+        return x1_i, y1_i, x2_i, y2_i
     
     def _clamp_coordinates(self, x1: int, y1: int, x2: int, y2: int,
                          frame_width: int, frame_height: int) -> Tuple[int, int, int, int]:
